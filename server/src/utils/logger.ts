@@ -1,49 +1,43 @@
-export enum LogLevel {
-  DEBUG = 0,
-  INFO = 1,
-  WARN = 2,
-  ERROR = 3,
-}
+import winston from 'winston';
 
-class Logger {
-  private logLevel: LogLevel = LogLevel.DEBUG;
+const levels = {
+  error: 0,
+  warn: 1,
+  info: 2,
+  http: 3,
+  debug: 4,
+};
 
-  constructor() {
-    this.logLevel = process.env.LOG_LEVEL ? parseInt(process.env.LOG_LEVEL) : LogLevel.DEBUG;
-  }
+const colors = {
+  error: 'red',
+  warn: 'yellow',
+  info: 'green',
+  http: 'magenta',
+  debug: 'white',
+};
 
-  private formatMessage(level: string, message: string, data?: any): string {
-    const timestamp = new Date().toISOString();
-    if (data) {
-      return `[${timestamp}] [${level}] ${message} ${JSON.stringify(data)}`;
-    }
-    return `[${timestamp}] [${level}] ${message}`;
-  }
+winston.addColors(colors);
 
-  debug(message: string, data?: any): void {
-    if (this.logLevel <= LogLevel.DEBUG) {
-      console.log(this.formatMessage('DEBUG', message, data));
-    }
-  }
+const format = winston.format.combine(
+  winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss:ms' }),
+  winston.format.colorize({ all: true }),
+  winston.format.printf((info) => `${info.timestamp} ${info.level}: ${info.message}`)
+);
 
-  info(message: string, data?: any): void {
-    if (this.logLevel <= LogLevel.INFO) {
-      console.log(this.formatMessage('INFO', message, data));
-    }
-  }
+const transports = [
+  new winston.transports.Console(),
+  new winston.transports.File({
+    filename: 'logs/error.log',
+    level: 'error',
+  }),
+  new winston.transports.File({
+    filename: 'logs/all.log',
+  }),
+];
 
-  warn(message: string, data?: any): void {
-    if (this.logLevel <= LogLevel.WARN) {
-      console.warn(this.formatMessage('WARN', message, data));
-    }
-  }
-
-  error(message: string, error?: any): void {
-    if (this.logLevel <= LogLevel.ERROR) {
-      const errorData = error instanceof Error ? error.message : error;
-      console.error(this.formatMessage('ERROR', message, errorData));
-    }
-  }
-}
-
-export const logger = new Logger();
+export const logger = winston.createLogger({
+  level: process.env.LOG_LEVEL || 'debug',
+  levels,
+  format,
+  transports,
+});

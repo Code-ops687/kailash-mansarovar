@@ -1,52 +1,41 @@
 export class AppError extends Error {
-  constructor(
-    public statusCode: number,
-    message: string,
-    public isOperational = true
-  ) {
+  constructor(public message: string, public statusCode: number) {
     super(message);
-    Object.setPrototypeOf(this, new.target.prototype);
+    Object.setPrototypeOf(this, AppError.prototype);
   }
 }
 
 export class ValidationError extends AppError {
   constructor(message: string) {
-    super(400, message);
+    super(message, 400);
     Object.setPrototypeOf(this, ValidationError.prototype);
   }
 }
 
 export class AuthenticationError extends AppError {
-  constructor(message = 'Authentication failed') {
-    super(401, message);
+  constructor(message: string) {
+    super(message, 401);
     Object.setPrototypeOf(this, AuthenticationError.prototype);
   }
 }
 
 export class AuthorizationError extends AppError {
-  constructor(message = 'Unauthorized access') {
-    super(403, message);
+  constructor(message: string) {
+    super(message, 403);
     Object.setPrototypeOf(this, AuthorizationError.prototype);
   }
 }
 
 export class NotFoundError extends AppError {
-  constructor(message = 'Resource not found') {
-    super(404, message);
+  constructor(message: string) {
+    super(message, 404);
     Object.setPrototypeOf(this, NotFoundError.prototype);
   }
 }
 
 export class ConflictError extends AppError {
-  constructor(message = 'Resource already exists') {
-    super(409, message);
+  constructor(message: string) {
+    super(message, 409);
     Object.setPrototypeOf(this, ConflictError.prototype);
-  }
-}
-
-export class InternalServerError extends AppError {
-  constructor(message = 'Internal server error') {
-    super(500, message);
-    Object.setPrototypeOf(this, InternalServerError.prototype);
   }
 }
