@@ -1,0 +1,10 @@
+node_modules
+NPM-DEBUG.LOG
+dist
+.env
+.git
+.gitignore
+README.md
+.DS_Store
+.vscode
+.idea
