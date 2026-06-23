@@ -1,0 +1,339 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// 1. Restaurant
+model Restaurant {
+  id        String   @id @default(uuid())
+  name      String
+  slug      String   @unique
+  address   String?
+  phone     String?
+  email     String?
+  logoUrl   String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users              User[]
+  roles              Role[]
+  categories         Category[]
+  menuItems          MenuItem[]
+  tables             Table[]
+  orders             Order[]
+  coupons            Coupon[]
+  offers             Offer[]
+  inventory          Inventory[]
+  auditLogs          AuditLog[]
+  restaurantSettings RestaurantSettings?
+}
+
+// 2. Role
+model Role {
+  id           String       @id @default(uuid())
+  name         String
+  restaurantId String
+  restaurant   Restaurant   @relation(fields: [restaurantId], references: [id])
+  permissions  Permission[] @relation("RolePermissions")
+  users        User[]
+
+  @@unique([name, restaurantId])
+}
+
+// 3. Permission
+model Permission {
+  id          String   @id @default(uuid())
+  action      String   // e.g., "create:menu", "read:orders"
+  description String?
+  roles       Role[]   @relation("RolePermissions")
+}
+
+// 4. User
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  password     String
+  firstName    String
+  lastName     String
+  phone        String?
+  isActive     Boolean  @default(true)
+  restaurantId String
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
+  roleId       String
+  role         Role       @relation(fields: [roleId], references: [id])
+  
+  staffProfile    StaffProfile?
+  customerProfile CustomerProfile?
+  reviews         Review[]
+  notifications   Notification[]
+  auditLogs       AuditLog[]
+  favorites       Favorite[]
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// 5. StaffProfile
+model StaffProfile {
+  id         String   @id @default(uuid())
+  userId     String   @unique
+  user       User     @relation(fields: [userId], references: [id])
+  department String?
+  position   String?
+  shift      String?
+}
+
+// 6. CustomerProfile
+model CustomerProfile {
+  id            String   @id @default(uuid())
+  userId        String   @unique
+  user          User     @relation(fields: [userId], references: [id])
+  loyaltyPoints Int      @default(0)
+  preferences   Json?
+  
+  transactions  LoyaltyTransaction[]
+}
+
+// 7. Category
+model Category {
+  id           String   @id @default(uuid())
+  name         String
+  description  String?
+  image        String?
+  restaurantId String
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
+  menuItems    MenuItem[]
+}
+
+// 8. MenuItem
+model MenuItem {
+  id            String   @id @default(uuid())
+  name          String
+  description   String?
+  price         Float
+  discountPrice Float?
+  image         String?
+  isVeg         Boolean  @default(true)
+  isJain        Boolean  @default(false)
+  spiceLevel    Int      @default(1)
+  calories      Int?
+  prepTime      Int      @default(15) // in minutes
+  isAvailable   Boolean  @default(true)
+  ingredients   String[]
+  allergens     String[]
+  
+  categoryId    String
+  category      Category @relation(fields: [categoryId], references: [id])
+  restaurantId  String
+  restaurant    Restaurant @relation(fields: [restaurantId], references: [id])
+  
+  addOns        MenuItemAddOn[]
+  orderItems    OrderItem[]
+  reviews       Review[]
+  favorites     Favorite[]
+}
+
+// 9. MenuItemAddOn
+model MenuItemAddOn {
+  id         String   @id @default(uuid())
+  name       String
+  price      Float
+  menuItemId String
+  menuItem   MenuItem @relation(fields: [menuItemId], references: [id])
+}
+
+// 10. Table
+model Table {
+  id           String   @id @default(uuid())
+  tableNumber  Int
+  capacity     Int
+  qrCodeUrl    String?
+  status       String   @default("AVAILABLE") // AVAILABLE, OCCUPIED, RESERVED
+  restaurantId String
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
+  orders       Order[]
+}
+
+// 11. Order
+model Order {
+  id           String   @id @default(uuid())
+  orderNumber  String   @unique
+  status       String   @default("PENDING") // PENDING, PREPARING, READY, SERVED, CANCELLED
+  orderType    String   @default("DINE_IN") // DINE_IN, TAKEAWAY, DELIVERY
+  totalAmount  Float
+  taxAmount    Float    @default(0)
+  discount     Float    @default(0)
+  finalAmount  Float
+  notes        String?
+  
+  tableId      String?
+  table        Table?     @relation(fields: [tableId], references: [id])
+  restaurantId String
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
+  
+  orderItems   OrderItem[]
+  payment      Payment?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// 12. OrderItem
+model OrderItem {
+  id         String   @id @default(uuid())
+  quantity   Int
+  price      Float
+  notes      String?
+  orderId    String
+  order      Order    @relation(fields: [orderId], references: [id])
+  menuItemId String
+  menuItem   MenuItem @relation(fields: [menuItemId], references: [id])
+}
+
+// 13. Payment
+model Payment {
+  id            String   @id @default(uuid())
+  amount        Float
+  paymentMethod String   // CASH, CARD, UPI
+  status        String   @default("PENDING") // PENDING, COMPLETED, FAILED
+  transactionId String?
+  orderId       String   @unique
+  order         Order    @relation(fields: [orderId], references: [id])
+  createdAt     DateTime @default(now())
+}
+
+// 14. Review
+model Review {
+  id         String   @id @default(uuid())
+  rating     Int
+  comment    String?
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  menuItemId String
+  menuItem   MenuItem @relation(fields: [menuItemId], references: [id])
+  createdAt  DateTime @default(now())
+}
+
+// 15. Coupon
+model Coupon {
+  id           String   @id @default(uuid())
+  code         String   @unique
+  discountType String   // PERCENTAGE, FIXED
+  discountVal  Float
+  minOrderVal  Float    @default(0)
+  validFrom    DateTime
+  validTo      DateTime
+  isActive     Boolean  @default(true)
+  restaurantId String
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
+}
+
+// 16. Offer
+model Offer {
+  id           String   @id @default(uuid())
+  title        String
+  description  String?
+  image        String?
+  validFrom    DateTime
+  validTo      DateTime
+  isActive     Boolean  @default(true)
+  restaurantId String
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
+}
+
+// 17. Inventory
+model Inventory {
+  id           String       @id @default(uuid())
+  name         String
+  restaurantId String
+  restaurant   Restaurant   @relation(fields: [restaurantId], references: [id])
+  ingredients  Ingredient[]
+}
+
+// 18. Ingredient
+model Ingredient {
+  id            String   @id @default(uuid())
+  name          String
+  quantity      Float
+  unit          String
+  minThreshold  Float
+  inventoryId   String
+  inventory     Inventory @relation(fields: [inventoryId], references: [id])
+}
+
+// 19. Supplier
+model Supplier {
+  id              String   @id @default(uuid())
+  name            String
+  contactName     String?
+  phone           String?
+  email           String?
+  purchaseRecords PurchaseRecord[]
+}
+
+// 20. PurchaseRecord
+model PurchaseRecord {
+  id         String   @id @default(uuid())
+  amount     Float
+  date       DateTime @default(now())
+  supplierId String
+  supplier   Supplier @relation(fields: [supplierId], references: [id])
+}
+
+// 21. Notification
+model Notification {
+  id        String   @id @default(uuid())
+  title     String
+  message   String
+  isRead    Boolean  @default(false)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+// 22. AuditLog
+model AuditLog {
+  id           String   @id @default(uuid())
+  action       String
+  details      Json?
+  userId       String?
+  user         User?      @relation(fields: [userId], references: [id])
+  restaurantId String
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
+  createdAt    DateTime @default(now())
+}
+
+// 23. RestaurantSettings
+model RestaurantSettings {
+  id           String     @id @default(uuid())
+  currency     String     @default("INR")
+  taxRate      Float      @default(5.0)
+  theme        String     @default("dark")
+  restaurantId String     @unique
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
+}
+
+// 24. Favorite
+model Favorite {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  menuItemId String
+  menuItem   MenuItem @relation(fields: [menuItemId], references: [id])
+
+  @@unique([userId, menuItemId])
+}
+
+// 25. LoyaltyTransaction
+model LoyaltyTransaction {
+  id                String          @id @default(uuid())
+  points            Int
+  type              String          // EARNED, REDEEMED
+  description       String?
+  customerProfileId String
+  customerProfile   CustomerProfile @relation(fields: [customerProfileId], references: [id])
+  createdAt         DateTime        @default(now())
+}
